@@ -1,0 +1,45 @@
+stages:
+  data_to_parquet:
+    cmd: python -m src.data_parquet
+    deps:
+      - config_v2.yaml
+      - src/config_v2.py
+      - src/data_parquet.py
+      - src/logging_utils.py
+      - data/raw/sales_data_sample.csv
+    outs:
+      - data/processed/sales_parquet
+
+  train_regression:
+    cmd: python -m src.train_sales_regression_mlflow
+    deps:
+      - config_v2.yaml
+      - src/config_v2.py
+      - src/train_sales_regression_mlflow.py
+      - src/logging_utils.py
+      # کل ماژول‌های رگرسیون (کدی که واقعاً مدل رو می‌سازه)
+      - src/sales_regression
+      - data/processed/sales_parquet
+    outs:
+      - models/sales_regressor.joblib
+      - models/sales_regressor_metadata.json
+      - models/sales_regressor.onnx
+      - output/explainability
+    metrics:
+      - output/metrics/sales_regression_metrics.json
+
+  train_timeseries_risk:
+    cmd: >
+      python -m src.train_sales_timeseries_risk
+      --product-line "Classic Cars"
+      --country "USA"
+      --forecast-steps 6
+      --garch-horizon 6
+    deps:
+      - config_v2.yaml
+      - src/config_v2.py
+      - src/train_sales_timeseries_risk.py
+      - src/logging_utils.py
+      - data/processed/sales_parquet
+    metrics:
+      - output/timeseries/sales_ts_risk_classic_cars_usa.json

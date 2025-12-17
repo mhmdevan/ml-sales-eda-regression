@@ -1,33 +1,97 @@
-# Python bytecode / cache
+# -----------------------------
+# Python / General
+# -----------------------------
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
-# Virtual environments
+# Virtualenvs
 .venv/
 venv/
-env/
 ENV/
+env/
+.python-version
 
-# Test & coverage artifacts
+# Packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+.eggs/
+
+# Tests / coverage
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+*.cover
+.hypothesis/
 
-# Packaging / build
-*.egg-info/
-dist/
-build/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# OS / editor trash
-.DS_Store
-.vscode/
-.idea/
-*.iml
+# Type check / linters
+.mypy_cache/
+.pyright/
+.ruff_cache/
 
 # Logs
 *.log
+logs/
 
+# Jupyter (even if you don't use it, teammates might)
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# -----------------------------
+# DVC
+# -----------------------------
+# Keep dvc.yaml, dvc.lock, *.dvc, .dvc/config in git
+.dvc/cache/
+.dvc/tmp/
+.dvc/state
+
+# -----------------------------
+# Data / Artifacts (Kaggle CSV + generated outputs)
+# NOTE: DVC outs/metrics should NOT be committed to git.
+# -----------------------------
+
+# Raw datasets (Kaggle download)
+data/raw/
+**/data/raw/
+**/sales_data_sample.csv
+
+# Processed data layers (Parquet partitions)
+data/processed/
+**/data/processed/
+
+# Common outputs / artifacts
+output/
+**/output/
+models/
+**/models/
+
+# MLflow local store
+mlruns/
+**/mlruns/
+
+# DuckDB files
+duckdb/
+**/duckdb/
+*.duckdb
+*.db
+*.sqlite
+*.sqlite3
+
+# ONNX / model binaries (if not tracked by DVC)
+*.onnx
+*.joblib
+*.pkl
+
+# Streamlit artifacts / cache
+.streamlit/
+
+dvc.lock

@@ -1,667 +1,338 @@
-# 📊 Sales Data EDA & Regression (Kaggle Sample Sales Dataset)
+# 📊 Sales Analytics & ML — From One CSV to a Mini MLOps Pipeline (DVC + MLflow + FastAPI + ONNX + TS Risk)
 
-Config-driven Exploratory Data Analysis (EDA) and regression on a real-world **sales dataset** from Kaggle, implemented as reusable Python modules (no Jupyter notebooks).
+Turn a messy **sales CSV** into a **reproducible analytics + machine learning pipeline** that looks and feels like real production work:
+data cleaning → Parquet data layer → SQL analytics → model training & experiment tracking → explainability → export → API serving → time‑series forecasting & volatility (risk).
 
-The goal of this project is to build a **clean, reproducible and extensible analytics pipeline** that:
+> **Resume story (1 sentence):**  
+> *“I took a raw sales export and built a production‑style pipeline with DVC reproducibility, MLflow experiments, a best‑model artifact set (joblib + ONNX + metadata), SHAP explainability, an online FastAPI predictor, and a time‑series risk module (SARIMA + GARCH) for a selected segment.”*
 
-- loads raw data from CSV using a YAML config
-- cleans missing values and outliers in a deterministic way
-- computes descriptive and grouped statistics and exports them to CSV/Parquet
-- generates visualizations (histograms, scatter plots, boxplots)
-- adds feature engineering for a regression model on `SALES`
-- trains and compares several regression models (including boosting)
-- exposes an interactive dashboard (Streamlit) and an HTTP prediction API (FastAPI)
-- is structured like a small, installable package with basic tests
+---
+
+## ✅ What this repo proves (skills that show up in interviews)
+
+**Data Engineering**
+
+- Polars ingestion + cleaning
+- Partitioned **Parquet** as a canonical processed layer
+- **DuckDB** analytics on Parquet (SQL without managing a DB server)
+
+**ML Engineering**
+
+- scikit‑learn **Pipeline + ColumnTransformer**
+- model benchmarking (Linear / RF / GBT / XGBoost / LightGBM / CatBoost)
+- consistent training ↔ inference schema (CLI + API reuse the same feature set)
+- model artifacts: `joblib` + `metadata.json` + `ONNX`
+
+**MLOps / Reproducibility**
+
+- **DVC pipeline**: deterministic stages, tracked dependencies/outputs, tracked metrics
+- **MLflow** tracking: params, metrics, artifacts, run comparison
+- logging utilities + config‑driven execution
+
+**Time‑Series & Risk**
+
+- SARIMA forecasting with baseline comparison
+- GARCH(1,1) volatility estimation on monthly returns
+
+---
+
+## 🧩 Two evolutions: v1 vs v2
+
+This repo keeps two versions side‑by‑side so you can show progression:
+
+- **v1**: script‑style, config‑driven EDA + classic regression + basic monitoring + Streamlit + FastAPI (quick prototype).
+- **v2 (main focus)**: “mini MLOps” architecture: Polars → Parquet → DuckDB → MLflow training + SHAP + ONNX + FastAPI v2 + CLI + time‑series risk.
+
+➡️ **Details**
+
+- `v1/README.md` — v1 implementation notes  
+- `v2/README.md` — v2 architecture, modules, and deeper docs
 
 ---
 
 ## 🔗 Dataset
 
-This project uses the **Sample Sales Data** dataset from Kaggle:
+- **Source**: Kaggle — *Sample Sales Data* (`sales_data_sample.csv`)
+- **Target (regression)**: `SALES` (continuous)
+- **Note**: raw CSV is **not committed** (Kaggle terms).
 
-> `sales_data_sample.csv` from:  
-> <https://www.kaggle.com/datasets/kyanyoga/sample-sales-data>
-
-> Note:  
-> Due to Kaggle's terms, the CSV file is **not** stored in this repository.  
-> Download it manually and place it in the `data/` folder (see below).
-
----
-
-## 🗂 Project Structure
+Download and place it here (v2 path):
 
 ```text
-01_sales_eda/
-    ├─ data/
-    │   └─ sales_data_sample.csv           # downloaded from Kaggle (gitignored)
-    ├─ output/
-    │   ├─ hist_sales.png                  # histogram of SALES
-    │   ├─ hist_quantityordered.png        # histogram of QUANTITYORDERED
-    │   ├─ scatter_quantityordered_vs_sales.png
-    │   ├─ scatter_priceeach_vs_sales.png
-    │   ├─ box_sales_by_productline.png
-    │   ├─ box_quantityordered_by_dealsize.png
-    │   ├─ dashboard.png                   # Streamlit dashboard screenshot
-    │   ├─ summary/
-    │   │   ├─ numeric_descriptive_stats.csv
-    │   │   ├─ numeric_descriptive_stats.parquet
-    │   │   ├─ sales_by_productline.csv
-    │   │   ├─ sales_by_productline.parquet
-    │   │   ├─ top_countries_by_sales.csv
-    │   │   ├─ top_countries_by_sales.parquet
-    │   │   ├─ sales_by_year.csv
-    │   │   └─ sales_by_year.parquet
-    │   ├─ regression/
-    │   │   ├─ advanced_metrics.csv
-    │   │   ├─ advanced_metrics.parquet
-    │   │   └─ sales_regression_best_*.joblib
-    │   └─ monitoring/
-    │       ├─ psi_sales_*.json
-    │       └─ sales_*.png
-    ├─ config.yaml                          # config for paths, cleaning, outliers, plots
-    ├─ sales_eda.py                         # EDA pipeline (cleaning + plots + summaries)
-    ├─ sales_regression.py                  # regression models on SALES
-    ├─ sales_monitoring.py                  # simple drift / monitoring demo (PSI on SALES)
-    ├─ sales_api.py                         # FastAPI prediction service on top of best model
-    ├─ streamlit_app.py                     # Streamlit dashboard for interactive analysis
-    ├─ pyproject.toml                       # package metadata (installable via pip)
-    ├─ tests/
-    │   ├─ test_feature_engineering.py
-    │   └─ test_regression_pipeline.py
-    └─ README.md                            # this file
+data/raw/sales_data_sample.csv
 ```
 
 ---
 
-## ⚙️ Installation & Setup
+## 🏗️ Architecture (high‑level)
 
-### 1. Create virtual environment
+```mermaid
+flowchart LR
+  A[Raw CSV<br/>data/raw/sales_data_sample.csv] --> B[Polars Cleaning<br/>src/data_parquet.py]
+  B --> C[Partitioned Parquet<br/>data/processed/sales_parquet/]
+  C --> D[DuckDB Analytics<br/>src/eda_polars_duckdb.py]
+  C --> E[ML Training + Tracking<br/>src/train_sales_regression_mlflow.py]
+  E --> F[Artifacts<br/>joblib + metadata + ONNX + SHAP]
+  C --> G[Time‑Series Risk<br/>src/train_sales_timeseries_risk.py]
+  F --> H[FastAPI v2<br/>src/api_sales_v2.py]
+  F --> I[CLI Predict<br/>src/predict_sales.py]
+```
+
+---
+
+## 🧠 Interview script (the exact story to tell)
+
+### 1) What problem were you solving?
+
+A business exports sales data as a CSV. You need to **clean it**, **analyze it**, **train a model** to predict order‑level sales, and make the pipeline **repeatable and deployable**.
+
+### 2) What technologies did you try and why did you pick this stack?
+
+- **Polars**: faster CSV ingestion + transformations than pandas for this workload; predictable behavior on messy exports.
+- **Parquet**: compressed, columnar, great for repeated analytics/training.
+- **DuckDB**: SQL analytics directly on Parquet files (no server, no ops burden).
+- **scikit‑learn Pipelines**: safe preprocessing + consistent transformations in training/inference.
+- **MLflow**: experiment tracking to compare models and keep artifacts organized.
+- **SHAP**: explain tree models; show feature drivers to stakeholders.
+- **ONNX**: portable export for non‑Python runtimes.
+- **FastAPI**: typed, production‑friendly serving.
+- **DVC**: reproducibility and “pipeline as code” with tracked metrics and artifacts.
+- **SARIMA + GARCH**: forecasting + volatility insight for a segment (Classic Cars, USA).
+
+### 3) What metrics did you track?
+
+**Regression**
+
+- RMSE (main optimization metric)
+- MAE (robustness / interpretability)
+- R² (variance explained)
+
+**Time‑Series (SARIMA)**
+
+- RMSE, MAE on a test window
+- MAPE / sMAPE (with safe handling for zeros)
+- improvement vs **naive baseline** (last observed value)
+
+**Risk (GARCH)**
+
+- volatility estimates (monthly + annualized)
+- forward variance forecast horizon
+
+### 4) What problems did you hit and how did you solve them?
+
+- **CSV encoding & date parsing**: add safe fallbacks + logging; enforce a clean date pipeline before downstream stages.
+- **Schema consistency**: centralize features; store schema/feature list in `models/sales_regressor_metadata.json`.
+- **Leakage risk**: engineered features are derived strictly from inputs (e.g., quantity × price), not from `SALES`.
+- **ONNX export dtype issues**: enforce numeric casts and patch ONNX input types for stable conversion.
+- **Time series zeros + short history**: use sMAPE and guardrails; return clear error details in JSON instead of silent failure.
+
+---
+
+## 🔁 Reproducibility with DVC (pipeline you can trust)
+
+This project uses **DVC stages** to make every run repeatable and auditable. The pipeline is declared in `dvc.yaml` and tracks:
+
+- dependencies (`deps`)
+- outputs (`outs`)
+- metrics files (`metrics`)
+
+### DVC stages
+
+```yaml
+stages:
+  data_to_parquet:
+    cmd: python -m src.data_parquet
+    deps:
+      - config_v2.yaml
+      - src/config_v2.py
+      - src/data_parquet.py
+      - src/logging_utils.py
+      - data/raw/sales_data_sample.csv
+    outs:
+      - data/processed/sales_parquet
+
+  train_regression:
+    cmd: python -m src.train_sales_regression_mlflow
+    deps:
+      - config_v2.yaml
+      - src/config_v2.py
+      - src/train_sales_regression_mlflow.py
+      - src/logging_utils.py
+      - src/sales_regression
+      - data/processed/sales_parquet
+    outs:
+      - models/sales_regressor.joblib
+      - models/sales_regressor_metadata.json
+      - models/sales_regressor.onnx
+      - output/explainability
+    metrics:
+      - output/metrics/sales_regression_metrics.json
+
+  train_timeseries_risk:
+    cmd: >
+      python -m src.train_sales_timeseries_risk
+      --product-line "Classic Cars"
+      --country "USA"
+      --forecast-steps 6
+      --garch-horizon 6
+    deps:
+      - config_v2.yaml
+      - src/config_v2.py
+      - src/train_sales_timeseries_risk.py
+      - src/logging_utils.py
+      - data/processed/sales_parquet
+    metrics:
+      - output/timeseries/sales_ts_risk_classic_cars_usa.json
+```
+
+### Running the full pipeline
+
+```bash
+# run all stages end-to-end
+dvc repro
+
+# visualize the pipeline graph
+dvc dag
+
+# compare metrics across versions/branches
+dvc metrics show
+dvc metrics diff
+```
+
+---
+
+## ⚙️ Quickstart (v2)
+
+### 1) Create venv and install
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate         # Windows: .venv\Scripts\activate
-```
-
-### 2. Install in editable mode (recommended)
-
-```bash
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e .
 ```
 
-This installs the local package in editable mode and makes the modules importable as `sales_eda` and `sales_regression`.
-
-If you prefer a simple requirements-based install, the minimal set is roughly:
+### 2) Install DVC (if needed)
 
 ```bash
-pip install pandas numpy matplotlib seaborn pyyaml scikit-learn joblib pyarrow streamlit fastapi uvicorn
+pip install dvc
 ```
 
-### 3. Download the dataset
-
-1. Go to the Kaggle dataset page:  
-   <https://www.kaggle.com/datasets/kyanyoga/sample-sales-data>
-2. Download `sales_data_sample.csv`.
-3. Create a `data/` folder in the project root (if it does not exist).
-4. Move the CSV into the `data/` folder:
+### 3) Place the dataset
 
 ```text
-01_sales_eda/
-    data/
-      sales_data_sample.csv
+data/raw/sales_data_sample.csv
 ```
 
----
-
-## ⚙️ Config-Driven Pipeline (`config.yaml`)
-
-The pipeline is controlled by `config.yaml`. Example:
-
-```yaml
-active_dataset: sample_sales
-
-data_path: "data/sales_data_sample.csv"
-output_dir: "output"
-
-numeric_columns:
-  - QUANTITYORDERED
-  - PRICEEACH
-  - SALES
-  - MSRP
-
-cleaning:
-  drop_columns:
-    - ADDRESSLINE2
-  fill_unknown_columns:
-    - STATE
-    - TERRITORY
-  postalcode_column: POSTALCODE
-
-outliers:
-  iqr_factor: 1.5
-
-plots:
-  histograms:
-    - SALES
-    - QUANTITYORDERED
-  scatters:
-    - [QUANTITYORDERED, SALES]
-    - [PRICEEACH, SALES]
-  boxplots:
-    - [PRODUCTLINE, SALES]
-    - [DEALSIZE, QUANTITYORDERED]
-
-datasets:
-  sample_sales:
-    data_path: "data/sales_data_sample.csv"
-    numeric_columns:
-      - QUANTITYORDERED
-      - PRICEEACH
-      - SALES
-      - MSRP
-    cleaning:
-      drop_columns:
-        - ADDRESSLINE2
-      fill_unknown_columns:
-        - STATE
-        - TERRITORY
-      postalcode_column: POSTALCODE
-    outliers:
-      iqr_factor: 1.5
-    plots:
-      histograms:
-        - SALES
-        - QUANTITYORDERED
-      scatters:
-        - [QUANTITYORDERED, SALES]
-        - [PRICEEACH, SALES]
-      boxplots:
-        - [PRODUCTLINE, SALES]
-        - [DEALSIZE, QUANTITYORDERED]
-
-  retail_v2:
-    data_path: "data/retail_v2.csv"
-    numeric_columns:
-      - QUANTITYORDERED
-      - PRICEEACH
-      - SALES
-      - MSRP
-    cleaning:
-      drop_columns: []
-      fill_unknown_columns: []
-      postalcode_column: POSTALCODE
-    outliers:
-      iqr_factor: 1.5
-    plots:
-      histograms:
-        - SALES
-      scatters:
-        - [QUANTITYORDERED, SALES]
-      boxplots: []
-```
-
-`active_dataset` determines which dataset block (under `datasets:`) is applied on top of the top-level config.  
-This makes it easy to reuse the same pipeline for multiple sales datasets with similar schema.
-
----
-
-## 📊 Current Run – Dataset & Cleaning Summary
-
-These numbers are from a real run on `sample_sales`:
-
-- **Raw shape:** `2823` rows × `25` columns.
-- After adding date features (`YEAR`, `MONTH`) and dropping `ADDRESSLINE2`:
-  - **Shape before outlier removal:** `2823` rows × `26` columns.
-- **Missing values before cleaning (top 4):**
-  - `ADDRESSLINE2`: 2521
-  - `STATE`: 1486
-  - `TERRITORY`: 1074
-  - `POSTALCODE`: 76
-- Cleaning steps applied:
-  - Dropped `ADDRESSLINE2`.
-  - Filled `STATE` and `TERRITORY` with `"Unknown"`.
-  - Cast `POSTALCODE` to string and filled missing with `"Unknown"`.
-- **Missing values after cleaning:** all selected business columns (ORDERNUMBER, QUANTITYORDERED, YEAR, DEALSIZE, CONTACT names, TERRITORY, COUNTRY, POSTALCODE, STATE) have `0` missing.
-
-Outlier removal with the IQR rule (`iqr_factor = 1.5`):
-
-- `QUANTITYORDERED`: 8 rows outside `[3.00, 67.00]`.
-- `PRICEEACH`: 0 rows outside `[21.86, 146.88]`.
-- `SALES`: 79 rows outside `[-1222.43, 7909.52]`.
-- `MSRP`: 35 rows outside `[-13.00, 203.00]`.
-
-Because outlier removal is applied sequentially per column, the final filtered dataset has:
-
-- **Final shape after outlier removal:** `2701` rows × `26` columns.
-
-High-level numeric stats (after cleaning/outlier removal):
-
-- `QUANTITYORDERED`: mean ≈ `34.66`, 75% ≈ `43.0`, max = `66.0`.
-- `PRICEEACH`: mean ≈ `82.99`, 75% ≈ `100.0`, max = `100.0`.
-- `SALES`: mean ≈ `3354.54`, 75% ≈ `4300.5`, max = `7901.1`.
-- `MSRP`: mean ≈ `97.43`, 75% ≈ `121.0`, max = `194.0`.
-
-The full numeric descriptive stats are stored in:
-
-```text
-output/summary/numeric_descriptive_stats.csv
-output/summary/numeric_descriptive_stats.parquet
-```
-
----
-
-## ▶️ Running the EDA Script
-
-From the project root:
+### 4) Run the pipeline (recommended)
 
 ```bash
-python sales_eda.py
+dvc repro
 ```
 
-or, if installed as a package with entry points:
+After this, you should have:
+
+- Parquet layer: `data/processed/sales_parquet/`
+- Best model + metadata + ONNX:
+  - `models/sales_regressor.joblib`
+  - `models/sales_regressor_metadata.json`
+  - `models/sales_regressor.onnx`
+- Regression metrics JSON:
+  - `output/metrics/sales_regression_metrics.json`
+- SHAP explainability artifacts:
+  - `output/explainability/`
+- Time‑series risk report JSON:
+  - `output/timeseries/sales_ts_risk_classic_cars_usa.json`
+
+---
+
+## 🧪 Experiment tracking (MLflow)
+
+Training logs all runs to a local MLflow store (`mlruns/`). You can open the UI:
 
 ```bash
-sales-eda
+mlflow ui --backend-store-uri file:mlruns
 ```
 
-The script will:
+What you’ll see:
 
-1. Read `config.yaml` and pick the `active_dataset`.
-2. Load `data_path` from config.
-3. Parse the `ORDERDATE` column and create:
-   - `YEAR`
-   - `MONTH`
-4. Clean missing values:
-   - Drop columns listed in `cleaning.drop_columns` (for this dataset: `ADDRESSLINE2`).
-   - Fill selected columns (`STATE`, `TERRITORY`) with `"Unknown"`.
-   - Cast `POSTALCODE` to string and fill missing with `"Unknown"`.
-5. Detect and remove outliers (IQR rule) from all `numeric_columns`:
-   - `QUANTITYORDERED`
-   - `PRICEEACH`
-   - `SALES`
-   - `MSRP`
-6. Compute descriptive statistics for numeric columns and export them to:
-   - `output/summary/numeric_descriptive_stats.csv`
-   - `output/summary/numeric_descriptive_stats.parquet`
-7. Compute grouped statistics and export to CSV/Parquet:
-   - Sales by `PRODUCTLINE` → `sales_by_productline.*`
-   - Top 10 `COUNTRY` by total sales → `top_countries_by_sales.*`
-   - Sales by `YEAR` → `sales_by_year.*`
-8. Generate and save plots into the `output/` folder according to the `plots` section in config.
-
-Console output includes `[INFO]`, `[CLEAN]`, `[OUTLIERS]`, `[SUMMARY]`, and `[PLOT]` messages to show exactly what the pipeline is doing.
+- one run per model spec (RF/GBT/XGB/LGBM/CatBoost/etc.)
+- metrics (RMSE/MAE/R²)
+- artifacts (trained pipeline, input example, SHAP report, etc.)
 
 ---
 
-## 📈 Visual Explorations
+## 🌐 Serving (FastAPI v2)
 
-All visualizations are generated by `sales_eda.py` and saved into `output/`.
-
-### 1. Histograms
-
-Overall distribution of numeric variables:
-
-#### Histogram – `SALES`
-
-![Histogram of Sales](output/hist_sales.png)
-
-#### Histogram – `QUANTITYORDERED`
-
-![Histogram of Quantity Ordered](output/hist_quantityordered.png)
-
----
-
-### 2. Scatter Plots
-
-Relationship between key numeric variables:
-
-#### `QUANTITYORDERED` vs `SALES`
-
-![Scatter: Quantity vs Sales](output/scatter_quantityordered_vs_sales.png)
-
-The script also prints the Pearson correlation between these two variables.
-
-#### `PRICEEACH` vs `SALES`
-
-![Scatter: Price vs Sales](output/scatter_priceeach_vs_sales.png)
-
-Again, the script prints the correlation value, which can hint at:
-
-- whether higher-priced products tend to generate higher sales amounts
-- or if there is a more complex relationship.
-
----
-
-### 3. Boxplots
-
-Distribution of sales across categories:
-
-#### Sales by Product Line
-
-![Boxplot: Sales by Product Line](output/box_sales_by_productline.png)
-
-Focused view of:
-
-- median sales per order for each product line
-- spread (IQR)
-- potential remaining outliers
-
-#### Quantity Ordered by Deal Size
-
-![Boxplot: Quantity by Deal Size](output/box_quantityordered_by_dealsize.png)
-
-Useful to quickly see if:
-
-- `"Large"` deals consistently have higher quantities
-- `"Small"` deals are really small, or occasionally include large orders
-
----
-
-## 🧮 Data Cleaning Logic
-
-### Missing Values
-
-The cleaning rules are explicit and reproducible:
-
-- Drop `ADDRESSLINE2` (mostly missing, rarely needed for sales-level analysis).
-- Fill `STATE` and `TERRITORY` with `"Unknown"` to preserve rows.
-- Treat `POSTALCODE` as a string and fill missing with `"Unknown"`.
-
-Before/after missing value counts are printed in the console.
-
-### Outliers (IQR Rule)
-
-For each numeric column in:
-
-- `QUANTITYORDERED`
-- `PRICEEACH`
-- `SALES`
-- `MSRP`
-
-we:
-
-1. Compute:
-   - Q1 (25th percentile)
-   - Q3 (75th percentile)
-   - IQR = Q3 − Q1
-2. Compute bounds:
-   - `lower = Q1 − 1.5 * IQR`
-   - `upper = Q3 + 1.5 * IQR`
-3. Remove rows where the value is outside `[lower, upper]`.
-
-For each column, the script prints:
-
-- how many outliers were detected,
-- dataset size before and after removal.
-
-This makes the cleaning process transparent and easy to adjust later (for example, setting `iqr_factor = 3.0` in `config.yaml` for a more conservative approach).
-
----
-
-## 🔢 Regression on SALES
-
-The script `sales_regression.py` builds regression models on the cleaned data to predict `SALES`.
-
-### 1. Feature Engineering
-
-After the EDA cleaning pipeline, the regression module adds:
-
-- Time-based features (from `ORDERDATE`):
-  - `YEAR`
-  - `MONTH`
-  - `QUARTER` (1–4)
-  - `SEASON` (one of `"winter"`, `"spring"`, `"summer"`, `"autumn"`)
-
-- Numeric ratio / derived features (avoiding target leakage):
-  - `PRICE_TO_MSRP_RATIO = PRICEEACH / MSRP`  
-    (with infinities and NaNs handled gracefully)
-  - `LINE_TOTAL_APPROX = QUANTITYORDERED * PRICEEACH`  
-    (approximate line total from input features only)
-
-- Categorical encoding:
-  - `PRODUCTLINE`
-  - `DEALSIZE`
-  - `COUNTRY`
-  - `SEASON`
-
-A `ColumnTransformer` is used to combine:
-
-- `StandardScaler` for numeric features
-- `OneHotEncoder(handle_unknown="ignore")` for categorical features
-
-On the cleaned sales dataset used above, the regression pipeline logged:
-
-- `Number of samples after cleaning: 2701`
-- Numeric features used:
-
-  ```text
-  ['QUANTITYORDERED', 'PRICEEACH', 'MSRP', 'YEAR', 'MONTH',
-   'QUARTER', 'PRICE_TO_MSRP_RATIO', 'LINE_TOTAL_APPROX']
-  ```
-
-- Categorical features used:
-
-  ```text
-  ['PRODUCTLINE', 'DEALSIZE', 'COUNTRY', 'SEASON']
-  ```
-
-### 2. Models
-
-The following models are trained and evaluated:
-
-1. `LinearRegression_baseline`  
-   - Pipeline: preprocessing → `LinearRegression`.
-
-2. `RandomForest_baseline`  
-   - Pipeline: preprocessing → `RandomForestRegressor` with reasonable defaults.
-
-3. `GradientBoosting_baseline`  
-   - Pipeline: preprocessing → `GradientBoostingRegressor`  
-     (a boosting model that typically performs well on tabular data).
-
-4. `RandomForest_tuned` (RandomizedSearchCV)  
-   - Pipeline: preprocessing → `RandomForestRegressor`.
-   - Hyperparameter search with `RandomizedSearchCV` over:
-     - `n_estimators`
-     - `max_depth`
-     - `min_samples_split`
-     - `min_samples_leaf`
-     - `max_features`
-   - `cv=3`, `n_iter=15`, scoring on negative RMSE.
-
-### 3. Metrics and Persistence (Current Run)
-
-For a concrete run on `sample_sales`, the pipeline reported the following **test-set** metrics:
-
-| Model                     | MSE        | RMSE    | MAE     | R²    |
-|---------------------------|------------|---------|---------|-------|
-| LinearRegression_baseline | 233263.80  | 482.97  | 340.78  | 0.903 |
-| RandomForest_baseline     | 134122.17  | 366.23  | 188.66  | 0.944 |
-| GradientBoosting_baseline | 126395.65  | 355.52  | 201.49  | 0.947 |
-| RandomForest_tuned        | 137114.12  | 370.29  | 190.44  | 0.943 |
-
-On this dataset:
-
-- `GradientBoosting_baseline` achieved the **lowest MSE/RMSE** and highest R²,  
-  so it was selected as the best model.
-- `RandomForest_tuned` did not beat the GradientBoosting model, which is realistic:  
-  sometimes a well-parameterized boosting model on a tabular dataset wins over a tuned forest.
-
-The best model is saved as:
-
-```text
-output/regression/sales_regression_best_GradientBoosting_baseline.joblib
-```
-
-All metrics for all models are stored in:
-
-```text
-output/regression/advanced_metrics.csv
-output/regression/advanced_metrics.parquet
-```
-
-Run regression training:
+Start the API after training (or after `dvc repro`):
 
 ```bash
-python sales_regression.py
-# or
-sales-regression
+uvicorn src.api_sales_v2:app --reload
 ```
+
+Endpoints:
+
+- `GET /health` — model status + metadata (feature list, run id)
+- `POST /predict` — predict `SALES` for one order line
 
 ---
 
-## 📺 Streamlit Dashboard
-
-`streamlit_app.py` provides a lightweight interactive interface on top of the EDA pipeline.
-
-Run the dashboard:
+## 🧰 Offline inference (CLI)
 
 ```bash
-python -m streamlit run streamlit_app.py
-```
+python -m src.predict_sales --show-schema
 
-The dashboard typically includes:
-
-- summary stats for numeric columns
-- top product lines and countries by sales
-- basic plots (for example SALES distribution, sales by year)
-- optional filters (for example by `PRODUCTLINE`)
-
-Screenshot example:
-
-![Streamlit Dashboard](output/dashboard.png)
-
-This is useful to demonstrate how the same data pipeline can power both scripts and a simple analytics UI.
-
----
-
-## 🔍 Monitoring / Drift Detection
-
-`sales_monitoring.py` is a small script that demonstrates a basic drift detection idea:
-
-- uses the same cleaned dataset from the EDA pipeline
-- splits the data into two periods:
-  - either earliest `YEAR` vs latest `YEAR`
-  - or the first half vs the second half of the dataset (fallback)
-- computes a simple Population Stability Index (PSI) for the `SALES` distribution
-- saves:
-  - a JSON report under `output/monitoring/psi_sales_*.json`
-  - a comparison histogram under `output/monitoring/sales_*.png`
-
-Run:
-
-```bash
-python sales_monitoring.py
-```
-
-This is not production-grade monitoring, but it shows you understand the concept of tracking distribution shifts over time and could extend it in a real system.
-
----
-
-## 🌐 FastAPI Prediction API
-
-`sales_api.py` exposes a small HTTP prediction service on top of the best regression model.
-
-### Run the API
-
-First ensure a best model exists:
-
-```bash
-python sales_regression.py
-```
-
-Then start the server:
-
-```bash
-uvicorn sales_api:app --reload
-```
-
-Open the interactive documentation (Swagger UI) at:
-
-- <http://127.0.0.1:8000/docs>
-
-### Example request
-
-`POST /predict` with JSON body:
-
-```json
-{
+python -m src.predict_sales --json '{
   "QUANTITYORDERED": 30,
   "PRICEEACH": 95.7,
-  "MSRP": 110.0,
-  "ORDERDATE": "2004-11-05",
+  "ORDERLINENUMBER": 3,
+  "MSRP": 120.0,
+  "QTR_ID": 3,
+  "MONTH_ID": 7,
+  "YEAR_ID": 2004,
   "PRODUCTLINE": "Classic Cars",
-  "DEALSIZE": "Medium",
-  "COUNTRY": "USA"
-}
+  "COUNTRY": "USA",
+  "DEALSIZE": "Medium"
+}'
 ```
-
-Example response:
-
-```json
-{
-  "prediction": 5432.10,
-  "currency": "USD",
-  "model_name": "RandomForestRegressor",
-  "model_path": "output/regression/sales_regression_best_RandomForest_tuned.joblib"
-}
-```
-
-The API reuses the same feature engineering as the training pipeline  
-(`add_date_features` + `create_regression_features`), so serving and training are consistent.
 
 ---
 
-## ✅ Testing
+## 📁 Repo map (important folders)
 
-Basic tests are included under `tests/`:
-
-- `tests/test_feature_engineering.py`
-  - runs the EDA cleaning pipeline on a subset of data
-  - checks that key engineered features (`QUARTER`, `SEASON`, `PRICE_TO_MSRP_RATIO`, `LINE_TOTAL_APPROX`) exist
-  - verifies they are correctly registered as numeric or categorical features
-
-- `tests/test_regression_pipeline.py`
-  - builds a limited regression dataset (for example 300 rows)
-  - runs the full regression training function
-  - checks that metrics are produced for all models
-  - ensures RMSE values are positive and non-empty
-
-Run all tests:
-
-```bash
-python -m pytest
+```text
+config_v2.yaml                  # main config (v2)
+dvc.yaml                        # reproducible pipeline stages
+data/
+  raw/                          # raw CSV (not committed)
+  processed/                    # partitioned parquet outputs
+models/                         # best model artifacts (joblib + metadata + onnx)
+output/
+  metrics/                      # regression metrics JSON
+  explainability/               # SHAP artifacts
+  timeseries/                   # SARIMA + GARCH risk reports
+mlruns/                         # MLflow local tracking store
+src/
+  data_parquet.py               # Polars cleaning -> parquet layer
+  eda_polars_duckdb.py          # DuckDB analytics on parquet
+  train_sales_regression_mlflow.py
+  train_sales_timeseries_risk.py
+  api_sales_v2.py               # serving
+  predict_sales.py              # CLI inference
+  sales_regression/             # schema, preprocessing, models, export, explainability, report
 ```
-
-These tests are intentionally small but show that the ML pipeline is treated as real software, with regression-safe refactors.
 
 ---
 
-## 🔍 Example Insights
+## 🛣️ Next improvements (if you ask “what would you add?”)
 
-After running the EDA and regression pipeline, you can:
-
-- Inspect descriptive statistics to understand:
-  - typical order quantities
-  - typical price ranges and MSRP
-  - spread and skew of sales
-- Use grouped statistics to answer questions like:
-  - Which `PRODUCTLINE` contributes most to total sales?
-  - Which countries are the top revenue drivers?
-  - How total sales evolve across years?
-- Use the regression models to:
-  - estimate expected sales for a given combination of price, quantity and product line
-  - discuss which features the model relies on (for example income proxies, price vs MSRP, product mix)
-- Use the monitoring script as a starting point for:
-  - tracking how the `SALES` distribution drifts over time
-  - reasoning about when to retrain the model in a production setup
+- CI (GitHub Actions): lint + tests + `dvc repro --pull` on sample data
+- MLflow Model Registry / promotion workflow
+- API load testing + structured monitoring (Prometheus metrics)
+- Data validation contracts (pandera / pydantic‑based checks) before training
+- Drift monitoring automation (scheduled evaluation + alert)
 
 ---
 
 ## 📜 License
 
-```text
-MIT License
-
-Copyright (c) 2025 Mohammad Eslamnia
-...
-```
+MIT License. See `LICENSE`.

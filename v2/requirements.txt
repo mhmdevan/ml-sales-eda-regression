@@ -1,0 +1,16 @@
+# Core API + model serving
+fastapi
+uvicorn[standard]
+
+# Model + preprocessing stack
+scikit-learn
+joblib
+numpy
+pandas
+
+# Config / utils
+pyyaml
+pydantic
+
+polars
+duckdb

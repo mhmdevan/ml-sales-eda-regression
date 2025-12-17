@@ -1,0 +1,12 @@
+# v1-specific ignores (place inside v1/.gitignore)
+
+# Raw Kaggle CSV (not committed)
+data/
+!data/.gitkeep
+
+# Generated artifacts
+output/
+
+# Local caches
+__pycache__/
+.pytest_cache/

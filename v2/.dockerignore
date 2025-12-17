@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.log
+
+# Virtual env
+.venv/
+venv/
+
+# DVC / Git / MLflow artifacts
+.dvc/
+.git/
+.gitignore
+.mlruns/
+mlruns/
+
+# OS / editor junk
+.DS_Store
+.idea/
+.vscode/
+
+# Large data artifacts (we don't want raw CSV in the image)
+data/raw/
+data/processed/
+
+# Local outputs
+output/

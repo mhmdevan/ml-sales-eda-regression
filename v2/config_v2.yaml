@@ -1,0 +1,52 @@
+# config_v2.yaml
+# Configuration for Sales ML/MLOps v2 (Data Layer: Parquet + DuckDB + Polars)
+
+paths:
+  raw_csv: "data/raw/sales_data_sample.csv"
+  processed_parquet_dir: "data/processed/sales_parquet"
+  duckdb_path: "duckdb/sales.duckdb"
+  output_plots_dir: "output/plots"
+  output_summary_dir: "output/summary"
+  output_metrics_dir: "output/metrics"
+
+duckdb:
+  table_name: "sales"
+  # Glob pattern used by DuckDB to read parquet files
+  parquet_glob: "data/processed/sales_parquet/*.parquet"
+
+parquet:
+  # Partition data into multiple parquet files by these columns (optional)
+  partition_by:
+    - "YEAR"
+
+cleaning:
+  drop_columns:
+    - "ADDRESSLINE2"
+  fill_unknown_columns:
+    - "STATE"
+    - "TERRITORY"
+    - "POSTALCODE"
+  orderdate_column: "ORDERDATE"
+  # If ORDERDATE is non-standard string, you can adjust the format here
+  orderdate_format: null  # e.g. "%m/%d/%Y" if needed
+
+ml:
+  target_column: "SALES"
+
+  numeric_features:
+    - "QUANTITYORDERED"
+    - "PRICEEACH"
+    - "ORDERLINENUMBER"
+    - "MSRP"
+    - "QTR_ID"
+    - "MONTH_ID"
+    - "YEAR_ID"
+
+  categorical_features:
+    - "PRODUCTLINE"
+    - "COUNTRY"
+    - "DEALSIZE"
+
+mlflow:
+  tracking_uri: "file:mlruns"
+  experiment_name: "sales_regression_v2"

@@ -1,0 +1,80 @@
+active_dataset: sample_sales
+
+data_path: "data/sales_data_sample.csv"
+output_dir: "output"
+
+numeric_columns:
+  - QUANTITYORDERED
+  - PRICEEACH
+  - SALES
+  - MSRP
+
+cleaning:
+  drop_columns:
+    - ADDRESSLINE2
+  fill_unknown_columns:
+    - STATE
+    - TERRITORY
+  postalcode_column: POSTALCODE
+
+outliers:
+  iqr_factor: 1.5
+
+plots:
+  histograms:
+    - SALES
+    - QUANTITYORDERED
+  scatters:
+    - [QUANTITYORDERED, SALES]
+    - [PRICEEACH, SALES]
+  boxplots:
+    - [PRODUCTLINE, SALES]
+    - [DEALSIZE, QUANTITYORDERED]
+
+datasets:
+  sample_sales:
+    data_path: "data/sales_data_sample.csv"
+    numeric_columns:
+      - QUANTITYORDERED
+      - PRICEEACH
+      - SALES
+      - MSRP
+    cleaning:
+      drop_columns:
+        - ADDRESSLINE2
+      fill_unknown_columns:
+        - STATE
+        - TERRITORY
+      postalcode_column: POSTALCODE
+    outliers:
+      iqr_factor: 1.5
+    plots:
+      histograms:
+        - SALES
+        - QUANTITYORDERED
+      scatters:
+        - [QUANTITYORDERED, SALES]
+        - [PRICEEACH, SALES]
+      boxplots:
+        - [PRODUCTLINE, SALES]
+        - [DEALSIZE, QUANTITYORDERED]
+
+  retail_v2:
+    data_path: "data/retail_v2.csv"
+    numeric_columns:
+      - QUANTITYORDERED
+      - PRICEEACH
+      - SALES
+      - MSRP
+    cleaning:
+      drop_columns: []
+      fill_unknown_columns: []
+      postalcode_column: POSTALCODE
+    outliers:
+      iqr_factor: 1.5
+    plots:
+      histograms:
+        - SALES
+      scatters:
+        - [QUANTITYORDERED, SALES]
+      boxplots: []

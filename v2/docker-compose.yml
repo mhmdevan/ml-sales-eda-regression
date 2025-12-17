@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  sales-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: sales-regression-api-v2
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./config_v2.yaml:/app/config_v2.yaml:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
