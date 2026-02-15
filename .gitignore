@@ -27,6 +27,7 @@ pip-wheel-metadata/
 htmlcov/
 *.cover
 .hypothesis/
+coverage.json
 
 # Type check / linters
 .mypy_cache/
@@ -94,4 +95,13 @@ duckdb/
 # Streamlit artifacts / cache
 .streamlit/
 
-dvc.lock
+# Quality pipeline artifacts (machine-generated)
+reports/quality/pytest.junit.xml
+reports/quality/pytest.log
+reports/quality/coverage.json
+reports/quality/quality_report.json
+reports/quality/README_SNAPSHOT.md
+reports/quality/sales/train_metrics.json
+reports/quality/sales/quality_metrics.json
+reports/quality/california/train_metrics.json
+reports/quality/california/quality_metrics.json

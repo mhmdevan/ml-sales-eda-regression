@@ -1,0 +1,23 @@
+stages:
+  data_layer:
+    cmd: python -m sales_forecasting_regression.data_layer --csv-path ../../data/raw/sales_data_sample.csv --parquet-dir data/processed/sales_parquet --duckdb-path duckdb/sales.duckdb
+    deps:
+      - src/sales_forecasting_regression/data_layer.py
+      - ../../data/raw/sales_data_sample.csv
+    outs:
+      - data/processed/sales_parquet
+      - duckdb/sales.duckdb
+
+  train:
+    cmd: python -m sales_forecasting_regression.train --data-path ../../data/raw/sales_data_sample.csv --artifact-dir models --report-path reports/sales_metrics.json --enable-mlflow
+    deps:
+      - src/sales_forecasting_regression/train.py
+      - src/sales_forecasting_regression/data.py
+      - src/sales_forecasting_regression/config.py
+      - ../../data/raw/sales_data_sample.csv
+    outs:
+      - models/sales_regressor.joblib
+      - models/sales_regressor_metadata.json
+      - models/sales_regressor.onnx
+    metrics:
+      - reports/sales_metrics.json

@@ -1,0 +1,64 @@
+schema: '2.0'
+stages:
+  data_parquet:
+    cmd: python -m src.data_parquet
+    deps:
+    - path: config_v2.yaml
+      hash: md5
+      md5: 1b5f3533e7945ec1431ac9564e88e2e7
+      size: 1226
+    - path: data/raw/sales_data_sample.csv
+      hash: md5
+      md5: 38a3712cdcbf34d3c9f69b032e071d15
+      size: 527958
+    - path: src/config_v2.py
+      hash: md5
+      md5: 8759b91c159a250d7e51171bfbe92d1f
+      size: 2884
+    - path: src/data_parquet.py
+      hash: md5
+      md5: 3cc182007796e7b3f66141d1e7060d93
+      size: 7188
+    - path: src/logging_utils.py
+      hash: md5
+      md5: 3745a583e0733a2de3e1bb6a6769b750
+      size: 1127
+    outs:
+    - path: data/processed/sales_parquet
+      hash: md5
+      md5: 4fd0f8bf81025c17fde24744e77ce03c.dir
+      size: 103181
+      nfiles: 4
+  train:
+    cmd: python -m src.train_sales_regression_mlflow
+    deps:
+    - path: config_v2.yaml
+      hash: md5
+      md5: 1b5f3533e7945ec1431ac9564e88e2e7
+      size: 1226
+    - path: data/processed/sales_parquet
+      hash: md5
+      md5: 4fd0f8bf81025c17fde24744e77ce03c.dir
+      size: 103181
+      nfiles: 4
+    - path: src/config_v2.py
+      hash: md5
+      md5: 8759b91c159a250d7e51171bfbe92d1f
+      size: 2884
+    - path: src/logging_utils.py
+      hash: md5
+      md5: 3745a583e0733a2de3e1bb6a6769b750
+      size: 1127
+    - path: src/train_sales_regression_mlflow.py
+      hash: md5
+      md5: 8164a5577df1370c7336c6d848ddc052
+      size: 15869
+    outs:
+    - path: models/sales_regressor.joblib
+      hash: md5
+      md5: 30ae420b3b9a679bc9b17c30b160b9b6
+      size: 22877610
+    - path: models/sales_regressor_metadata.json
+      hash: md5
+      md5: ea026c883187076147cca12476ee2255
+      size: 360
