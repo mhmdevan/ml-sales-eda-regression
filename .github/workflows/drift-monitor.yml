@@ -1,0 +1,31 @@
+name: drift-monitor
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [sales, california]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev,mlops]
+      - name: Run drift monitor
+        run: |
+          python scripts/monitoring/daily_drift_monitor.py --project ${{ matrix.project }}
+      - name: Upload drift artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-${{ matrix.project }}
+          path: reports/monitoring/${{ matrix.project }}

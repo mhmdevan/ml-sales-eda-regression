@@ -29,3 +29,20 @@ def test_sales_api_reports_unavailable_without_artifacts(tmp_path: Path) -> None
             },
         )
         assert response.status_code == 503
+
+        explain = client.post(
+            "/explain",
+            json={
+                "QUANTITYORDERED": 25,
+                "PRICEEACH": 80.0,
+                "ORDERLINENUMBER": 2,
+                "MSRP": 104.0,
+                "QTR_ID": 3,
+                "MONTH_ID": 7,
+                "YEAR_ID": 2004,
+                "PRODUCTLINE": "Classic Cars",
+                "COUNTRY": "USA",
+                "DEALSIZE": "Small",
+            },
+        )
+        assert explain.status_code == 503

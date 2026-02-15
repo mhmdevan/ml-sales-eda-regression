@@ -12,6 +12,7 @@ def test_predict_one_raises_for_missing_features(tmp_path: Path) -> None:
         data_path=tmp_path / "missing.csv",
         artifact_dir=artifact_dir,
         report_path=tmp_path / "reports" / "metrics.json",
+        selection_mode="baseline",
         enable_mlflow=False,
     )
 

@@ -27,3 +27,18 @@ def test_california_api_reports_unavailable_without_artifacts(tmp_path: Path) ->
             },
         )
         assert response.status_code == 503
+
+        explain = client.post(
+            "/explain",
+            json={
+                "MedInc": 8.0,
+                "HouseAge": 22,
+                "AveRooms": 5.5,
+                "AveBedrms": 1.1,
+                "Population": 700,
+                "AveOccup": 2.1,
+                "Latitude": 37.7,
+                "Longitude": -122.4,
+            },
+        )
+        assert explain.status_code == 503

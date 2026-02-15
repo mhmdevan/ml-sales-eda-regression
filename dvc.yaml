@@ -1,0 +1,116 @@
+stages:
+  train_sales:
+    cmd: python -m sales_forecasting_regression.train --data-path data/raw/sales_data_sample.csv --artifact-dir reports/dvc/sales/models --report-path reports/dvc/sales/train_report.json --metrics-path reports/dvc/sales/metrics.json --selection-mode both --enable-mlflow --mlflow-tracking-uri file:reports/dvc/mlruns --mlflow-experiment-name dvc_sales
+    deps:
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/train.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/data.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/tracking.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/time_series.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/config.py
+      - libs/ml_core/src/ml_core/modeling/trainer.py
+      - libs/ml_core/src/ml_core/monitoring/explainability.py
+      - libs/ml_core/src/ml_core/registry/artifacts.py
+    outs:
+      - reports/dvc/sales/models/sales_regressor.joblib
+      - reports/dvc/sales/models/sales_regressor_metadata.json
+      - reports/dvc/sales/models/sales_regressor.onnx
+      - reports/dvc/sales/models/schema.json
+      - reports/dvc/sales/models/explainability/shap_summary.json
+      - reports/dvc/sales/time_series_risk.json
+      - reports/dvc/sales/train_report.json
+    metrics:
+      - reports/dvc/sales/metrics.json
+
+  train_california:
+    cmd: python -m california_housing_template.train --artifact-dir reports/dvc/california/models --report-path reports/dvc/california/train_report.json --metrics-path reports/dvc/california/metrics.json --force-synthetic --selection-mode both
+    deps:
+      - projects/california_housing_template/src/california_housing_template/train.py
+      - projects/california_housing_template/src/california_housing_template/data.py
+      - projects/california_housing_template/src/california_housing_template/config.py
+      - libs/ml_core/src/ml_core/modeling/trainer.py
+      - libs/ml_core/src/ml_core/monitoring/explainability.py
+      - libs/ml_core/src/ml_core/registry/artifacts.py
+    outs:
+      - reports/dvc/california/models/california_model.joblib
+      - reports/dvc/california/models/california_metadata.json
+      - reports/dvc/california/models/california_model.onnx
+      - reports/dvc/california/models/schema.json
+      - reports/dvc/california/models/explainability/shap_summary.json
+      - reports/dvc/california/train_report.json
+    metrics:
+      - reports/dvc/california/metrics.json
+
+  eda_sales:
+    cmd: python scripts/eda/generate_eda_report.py --project sales --output-dir reports/dvc/eda/sales --report-version dvc
+    deps:
+      - scripts/eda/generate_eda_report.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/eda.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/data.py
+      - libs/ml_core/src/ml_core/monitoring/eda.py
+    outs:
+      - reports/dvc/eda/sales/eda_report.json
+      - reports/dvc/eda/sales/EDA_REPORT.md
+      - reports/dvc/eda/sales/plots.json
+      - reports/dvc/eda/sales/manifest.json
+
+  eda_california:
+    cmd: python scripts/eda/generate_eda_report.py --project california --output-dir reports/dvc/eda/california --report-version dvc --california-force-synthetic
+    deps:
+      - scripts/eda/generate_eda_report.py
+      - projects/california_housing_template/src/california_housing_template/eda.py
+      - projects/california_housing_template/src/california_housing_template/data.py
+      - libs/ml_core/src/ml_core/monitoring/eda.py
+    outs:
+      - reports/dvc/eda/california/eda_report.json
+      - reports/dvc/eda/california/EDA_REPORT.md
+      - reports/dvc/eda/california/plots.json
+      - reports/dvc/eda/california/manifest.json
+
+  monitor_sales:
+    cmd: python scripts/monitoring/daily_drift_monitor.py --project sales --output-dir reports/dvc/monitoring --run-label dvc
+    deps:
+      - scripts/monitoring/daily_drift_monitor.py
+      - libs/ml_core/src/ml_core/monitoring/drift.py
+      - libs/ml_core/src/ml_core/monitoring/drift_report.py
+      - libs/ml_core/src/ml_core/monitoring/schema_alert.py
+      - libs/ml_core/src/ml_core/monitoring/distributions.py
+    outs:
+      - reports/dvc/monitoring/sales/dvc/schema_summary.json
+      - reports/dvc/monitoring/sales/dvc/sales_evidently_report.json
+      - reports/dvc/monitoring/sales/dvc/sales_evidently_report.html
+    metrics:
+      - reports/dvc/monitoring/sales/dvc/drift_summary.json
+
+  monitor_california:
+    cmd: python scripts/monitoring/daily_drift_monitor.py --project california --output-dir reports/dvc/monitoring --run-label dvc
+    deps:
+      - scripts/monitoring/daily_drift_monitor.py
+      - libs/ml_core/src/ml_core/monitoring/drift.py
+      - libs/ml_core/src/ml_core/monitoring/drift_report.py
+      - libs/ml_core/src/ml_core/monitoring/schema_alert.py
+      - libs/ml_core/src/ml_core/monitoring/distributions.py
+    outs:
+      - reports/dvc/monitoring/california/dvc/schema_summary.json
+      - reports/dvc/monitoring/california/dvc/california_evidently_report.json
+      - reports/dvc/monitoring/california/dvc/california_evidently_report.html
+    metrics:
+      - reports/dvc/monitoring/california/dvc/drift_summary.json
+
+  quality:
+    cmd: python scripts/quality/generate_quality_report.py --reports-dir reports/dvc/quality
+    deps:
+      - scripts/quality/generate_quality_report.py
+      - libs/ml_core/src/ml_core/monitoring/latency.py
+      - libs/ml_core/src/ml_core/monitoring/calibration.py
+      - libs/ml_core/src/ml_core/monitoring/drift.py
+      - projects/sales_forecasting_regression/src/sales_forecasting_regression/train.py
+      - projects/california_housing_template/src/california_housing_template/train.py
+    outs:
+      - reports/dvc/quality/README_SNAPSHOT.md
+      - reports/dvc/quality/pytest.junit.xml
+      - reports/dvc/quality/coverage.json
+      - reports/dvc/quality/quality_report.json
+      - reports/dvc/quality/sales/quality_metrics.json
+      - reports/dvc/quality/california/quality_metrics.json
+    metrics:
+      - reports/dvc/quality/quality_metrics_summary.json

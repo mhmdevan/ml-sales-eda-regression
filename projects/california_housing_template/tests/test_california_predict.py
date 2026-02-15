@@ -10,6 +10,7 @@ def test_predict_returns_float(tmp_path: Path) -> None:
         artifact_dir=artifact_dir,
         use_synthetic_if_fetch_fails=True,
         force_synthetic=True,
+        selection_mode="baseline",
     )
 
     prediction = predict_one(

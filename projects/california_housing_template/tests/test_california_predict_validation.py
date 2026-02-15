@@ -12,6 +12,7 @@ def test_predict_one_raises_for_missing_features(tmp_path: Path) -> None:
         artifact_dir=artifact_dir,
         use_synthetic_if_fetch_fails=True,
         force_synthetic=True,
+        selection_mode="baseline",
     )
 
     with pytest.raises(ValueError):

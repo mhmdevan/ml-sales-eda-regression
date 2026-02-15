@@ -7,8 +7,24 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      - name: Ruff lint
+        run: |
+          ruff check libs projects scripts
+
   test:
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -25,6 +41,46 @@ jobs:
       - name: Run tests
         run: |
           pytest libs/ml_core/tests projects/sales_forecasting_regression/tests projects/california_housing_template/tests
+
+  docker-smoke-and-loadtest:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run API containers
+        run: |
+          docker compose up --build -d
+      - name: Smoke test health endpoints
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/health >/tmp/sales_health.json && curl -fsS http://127.0.0.1:8001/health >/tmp/cal_health.json; then
+              cat /tmp/sales_health.json
+              cat /tmp/cal_health.json
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/health >/dev/null
+          curl -fsS http://127.0.0.1:8001/health >/dev/null
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install load-test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      - name: Run locust load test
+        run: |
+          python scripts/loadtest/run_loadtest.py --duration 20s --users 20 --spawn-rate 5
+      - name: Upload load test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-report
+          path: reports/loadtest
+      - name: Docker compose down
+        if: always()
+        run: |
+          docker compose down -v
 
   quality-report:
     runs-on: ubuntu-latest
@@ -46,3 +102,35 @@ jobs:
         with:
           name: quality-report
           path: reports/quality
+
+  dvc-repro:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev,mlops]
+      - name: Run DVC repro
+        run: |
+          dvc repro
+      - name: Collect DVC metrics and diff
+        run: |
+          mkdir -p reports/dvc
+          dvc metrics show --json > reports/dvc/metrics_show.json
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            dvc metrics diff HEAD~1 --json > reports/dvc/metrics_diff.json || echo "{}" > reports/dvc/metrics_diff.json
+          else
+            echo "{}" > reports/dvc/metrics_diff.json
+          fi
+      - name: Upload DVC artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvc-artifacts
+          path: reports/dvc

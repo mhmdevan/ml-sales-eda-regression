@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from sklearn.base import RegressorMixin
@@ -16,7 +16,10 @@ EstimatorFactory = Callable[[dict[str, Any]], RegressorMixin]
 class CandidateModel:
     name: str
     estimator_factory: EstimatorFactory
-    parameter_grid: tuple[dict[str, Any], ...]
+    parameter_grid: tuple[dict[str, Any], ...] = field(default_factory=lambda: ({},))
+    tuning_parameter_grid: dict[str, list[Any] | tuple[Any, ...]] | None = None
+    tuning_cv: int = 3
+    tuning_n_jobs: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

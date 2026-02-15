@@ -10,6 +10,7 @@ def test_predict_one_returns_float(tmp_path: Path) -> None:
         data_path=tmp_path / "missing.csv",
         artifact_dir=artifact_dir,
         report_path=tmp_path / "reports" / "metrics.json",
+        selection_mode="baseline",
         enable_mlflow=False,
     )
 

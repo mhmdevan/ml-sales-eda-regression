@@ -52,7 +52,9 @@ def test_training_and_registry_roundtrip(tmp_path: Path) -> None:
 
     assert (tmp_path / "models" / "model.joblib").exists()
     assert (tmp_path / "models" / "metadata.json").exists()
+    assert (tmp_path / "models" / "schema.json").exists()
     assert metadata["project_name"] == "ml_core_test"
+    assert registry.model_exists()
 
     model = registry.load_model()
     predictions = model.predict(split.x_test.head(2))

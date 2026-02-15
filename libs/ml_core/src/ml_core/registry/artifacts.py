@@ -19,11 +19,13 @@ class ArtifactRegistry:
         model_filename: str = "model.joblib",
         metadata_filename: str = "metadata.json",
         onnx_filename: str = "model.onnx",
+        schema_filename: str = "schema.json",
     ) -> None:
         self.root_dir = root_dir
         self.model_path = root_dir / model_filename
         self.metadata_path = root_dir / metadata_filename
         self.onnx_path = root_dir / onnx_filename
+        self.schema_path = root_dir / schema_filename
 
     def save_training_result(
         self,
@@ -61,6 +63,14 @@ class ArtifactRegistry:
         payload = metadata.as_dict()
         self.metadata_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
+        schema_payload = {
+            "numeric_features": list(result.schema.numeric_features),
+            "categorical_features": list(result.schema.categorical_features),
+            "feature_names": list(result.schema.all_features),
+            "target_name": result.schema.target_name,
+        }
+        self.schema_path.write_text(json.dumps(schema_payload, indent=2), encoding="utf-8")
+
         exported_onnx: Path | None = None
         if export_onnx and sample_frame is not None:
             exported_onnx = export_pipeline_to_onnx(result.pipeline, sample_frame, self.onnx_path)
@@ -80,8 +90,13 @@ class ArtifactRegistry:
             raise FileNotFoundError(f"Metadata artifact not found: {self.metadata_path}")
         return json.loads(self.metadata_path.read_text(encoding="utf-8"))
 
+    def load_schema(self) -> dict[str, Any]:
+        if not self.schema_path.exists():
+            raise FileNotFoundError(f"Schema artifact not found: {self.schema_path}")
+        return json.loads(self.schema_path.read_text(encoding="utf-8"))
+
     def model_exists(self) -> bool:
-        return self.model_path.exists() and self.metadata_path.exists()
+        return self.model_path.exists() and self.metadata_path.exists() and self.schema_path.exists()
 
 
 def leaderboard_as_records(leaderboard: tuple[ModelScore, ...]) -> list[dict[str, Any]]:

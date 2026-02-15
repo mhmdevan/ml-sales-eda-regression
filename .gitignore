@@ -105,3 +105,12 @@ reports/quality/sales/train_metrics.json
 reports/quality/sales/quality_metrics.json
 reports/quality/california/train_metrics.json
 reports/quality/california/quality_metrics.json
+reports/loadtest/
+reports/monitoring/
+reports/eda/
+reports/dvc/
+reports/registry/
+projects/sales_forecasting_regression/reports/ci_metrics.json
+projects/sales_forecasting_regression/reports/
+projects/california_housing_template/reports/
+README copy.md

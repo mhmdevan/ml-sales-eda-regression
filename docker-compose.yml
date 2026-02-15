@@ -4,7 +4,16 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
-    command: sh -c "pip install --no-cache-dir -e . && uvicorn sales_forecasting_regression.api:app --host 0.0.0.0 --port 8000"
+    command: >
+      sh -c "pip install --no-cache-dir -e .[dev] &&
+      python -m sales_forecasting_regression.train
+      --data-path /workspace/data/raw/sales_data_sample.csv
+      --artifact-dir /workspace/projects/sales_forecasting_regression/models
+      --report-path /workspace/projects/sales_forecasting_regression/reports/ci_metrics.json
+      || python -m sales_forecasting_regression.train
+      --artifact-dir /workspace/projects/sales_forecasting_regression/models
+      --report-path /workspace/projects/sales_forecasting_regression/reports/ci_metrics.json &&
+      uvicorn sales_forecasting_regression.api:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
 
@@ -13,6 +22,11 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
-    command: sh -c "pip install --no-cache-dir -e . && uvicorn california_housing_template.api:app --host 0.0.0.0 --port 8000"
+    command: >
+      sh -c "pip install --no-cache-dir -e .[dev] &&
+      python -m california_housing_template.train
+      --artifact-dir /workspace/projects/california_housing_template/models
+      --force-synthetic &&
+      uvicorn california_housing_template.api:app --host 0.0.0.0 --port 8000"
     ports:
       - "8001:8000"

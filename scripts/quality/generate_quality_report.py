@@ -329,8 +329,23 @@ def main() -> None:
         "sales": sales_summary,
         "california": california_summary,
     }
+    summary_metrics = {
+        "tests_total": int(tests_summary["tests"]),
+        "tests_passed": int(tests_summary["passed"]),
+        "coverage_percent": float(coverage_summary["percent_covered"]),
+        "sales_rmse": float(sales_summary["best_metrics"]["rmse"]),
+        "sales_mae": float(sales_summary["best_metrics"]["mae"]),
+        "sales_r2": float(sales_summary["best_metrics"]["r2"]),
+        "california_rmse": float(california_summary["best_metrics"]["rmse"]),
+        "california_mae": float(california_summary["best_metrics"]["mae"]),
+        "california_r2": float(california_summary["best_metrics"]["r2"]),
+    }
 
     (reports_dir / "quality_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    (reports_dir / "quality_metrics_summary.json").write_text(
+        json.dumps(summary_metrics, indent=2),
+        encoding="utf-8",
+    )
     (reports_dir / "README_SNAPSHOT.md").write_text(build_readme_snapshot(report), encoding="utf-8")
 
     print(json.dumps(report, indent=2))
