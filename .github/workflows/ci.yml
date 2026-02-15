@@ -52,14 +52,22 @@ jobs:
           docker compose up --build -d
       - name: Smoke test health endpoints
         run: |
-          for i in {1..30}; do
+          ok=0
+          for i in {1..60}; do
             if curl -fsS http://127.0.0.1:8000/health >/tmp/sales_health.json && curl -fsS http://127.0.0.1:8001/health >/tmp/cal_health.json; then
               cat /tmp/sales_health.json
               cat /tmp/cal_health.json
+              ok=1
               break
             fi
             sleep 2
           done
+          if [ "$ok" -ne 1 ]; then
+            docker compose ps
+            docker compose logs --tail=200 sales-api
+            docker compose logs --tail=200 california-api
+            exit 1
+          fi
           curl -fsS http://127.0.0.1:8000/health >/dev/null
           curl -fsS http://127.0.0.1:8001/health >/dev/null
       - uses: actions/setup-python@v5
